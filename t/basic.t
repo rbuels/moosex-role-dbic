@@ -3,12 +3,12 @@ use warnings;
 
 use Test::More tests => 10;
 
-my $t = Tester->new( dbic_dsn => 'DSN, baby!' );
+my $t = Tester->new( dbic_class => 'MockSchema', dbic_dsn => 'DSN, baby!' );
 isa_ok( $t, 'Tester' );
 is( $t->dbic_dsn, 'DSN, baby!' );
 isa_ok( $t->dbic_schema, 'MockSchema' );
 
-# test clearing trigger, should call connect() again (which is
+# test the clearing trigger, should call connect() again (which is
 # checked by the test count)
 $t->dbic_schema_options( { foo => 'bar' } );
 isa_ok( $t->dbic_schema, 'MockSchema' );
@@ -29,10 +29,10 @@ BEGIN {
     package Tester2;
     use Moose;
     with 'MooseX::Role::DBIC' => {
-        schema_name => 'herp',
-        schema_class => 'MockSchema',
+        schema_name  => 'herp',
         accessor_options => {
-            herp_dsn => [ default => 'herpdsn!' ],
+            herp_dsn   => [ default => 'herpdsn!'   ],
+            herp_class => [ default => 'MockSchema' ],
         },
     };
 

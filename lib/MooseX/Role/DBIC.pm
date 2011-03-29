@@ -10,12 +10,6 @@ parameter 'schema_name' => qw(
     default dbic
 );
 
-parameter 'schema_class' => qw(
-    is       ro
-    isa      Str
-    required 1
-);
-
 parameter 'schema_description' => (
     is  => 'ro',
     isa => 'Str',
@@ -40,7 +34,6 @@ role {
 
     my $p        = shift;
     my $name     = $p->schema_name;
-    my $class    = $p->schema_class;
     my $desc     = $p->schema_description;
     my $acc_opts = $p->accessor_options;
     my $clearer  = sub { shift->${\"clear_${name}_schema"}() };
@@ -83,6 +76,14 @@ role {
         $common_opts->('attrs'),
        );
 
+    has "${name}_class" => (
+        documentation => "schema class name for the $desc schema",
+        is            => 'rw',
+        isa           => 'Str',
+        required      => 1,
+        $common_opts->('class'),
+       );
+
     # provides a lazy *_schema attr
     has "${name}_schema" => (
         is  => 'rw',
@@ -101,11 +102,12 @@ role {
     method "_build_${name}_schema" => sub {
         my ( $self ) = @_;
 
-        Class::MOP::load_class( $class );
+        my $schema_class = $self->${\"${name}_class"}();
+        Class::MOP::load_class( $schema_class );
 
         no strict 'refs';
 
-        return $class->connect(
+        return $schema_class->connect(
             $self->${\"${name}_dsn"}(),
             $self->${\"${name}_user"}(),
             $self->${\"${name}_password"}(),
@@ -125,12 +127,12 @@ __END__
   package MyClass;
   use Moose;
 
-  with 'MooseX::Role::DBIC' => { schema_class => 'My::Schema' };
+  with 'MooseX::Role::DBIC';
 
   package main;
-  my $x = MyClass->new( dbic_dsn  => '...',
-                        dbic_user => '...',
-                        dbic_password => '...',
+  my $x = MyClass->new( dbic_class    => 'My::Schema',
+                        dbic_user     => 'chris',
+                        dbic_password => 'monkeys',
                        );
 
   $x->dbic_schema->resultset('Foo')->search(...);
@@ -138,25 +140,28 @@ __END__
   ##############
   ### a more complicated use case:
   ###    BigClass has 2 different schemas, an 'itchy_schema' and a
-  ###    'scratchy_schema'
+  ###    'scratchy_schema', each with convenient default schema names.
 
   package BigClass;
   use Moose;
 
   with 'MooseX::Role::DBIC' => {
-      schema_name  => 'itchy',
-      schema_class => 'Itchy::Schema',
+      schema_name      => 'itchy',
+      accessor_options => {
+          itchy_class => [ default => 'Itchy::Schema' ],
+      },
   };
-
   with 'MooseX::Role::DBIC' => {
-      schema_name  => 'scratchy',
-      schema_class => 'Scratchy::Schema',
+      schema_name      => 'scratchy',
+      accessor_options => {
+          scratchy_class => [ default => 'Scratchy::Schema' ],
+      },
   };
 
   # 2 database connections can take a lot of parameters ...
   my $c = BigClass->new(
-      itchy_dsn  => 'dbi:Pg:dbname=foo;host=bar',
-      itchy_user => 'mikey',
+      itchy_dsn      => 'dbi:Pg:dbname=foo;host=bar',
+      itchy_user     => 'mikey',
       itchy_password => 'seekrit',
       itchy_attrs    => { AutoCommit => 1 },
       itchy_schema_options => {
@@ -181,19 +186,21 @@ same dsn, user, password, and connection attributes.
 
 =head1 schema_name
 
-Name for this connection, which is the prefix for all the generated
-accessors.  Default 'dbic', which means that you get the accessors
-C<dbic_dsn>, C<dbic_user>, C<dbic_password>, C<dbic_attrs>, and
-C<dbic_conn>.
+Optional name for this connection, which is the prefix for all the
+generated accessors.  Default 'dbic', which means that you get the
+accessors C<dbic_dsn>, C<dbic_schema>, etc.
 
 =head1 schema_description
 
-Plaintext description of this connection.  Only used in generating
-C<documentation> for each of the generated accessors.
+Optional plaintext description of this connection.  Only used in
+generating C<documentation> metadata for each of the generated
+accessors.  Defaults to the schema_name with underscores replaced by
+spaces.
 
 =head1 accessor_options
 
-Hashref of additional options to pass to the generated accessors, e.g.
+Optional hashref of additional options to pass to the generated
+accessors, e.g.
 
   package MyClass;
   use Moose;
@@ -210,7 +217,18 @@ Hashref of additional options to pass to the generated accessors, e.g.
 =head2 (schema_name)_schema
 
 Get a L<DBIx::Connector> schema object for the given schema info.
-This is the most important one.
+This is the most important one.  It's a lazy accessor, meaning the
+schema will not be created until the accessor is called.
+
+Conveniently, you can set new values of any of the connection
+attributes, and this schema attribute will be cleared, causing a new
+schema with the correct attributes to be created on the next call to
+C<(schema_name)_schema>.
+
+=head2 (schema_name)_class
+
+Class name of the schema to use for this slot.  Required, unless you
+provide a default via C<accessor_options>.
 
 =head2 (schema_name)_dsn
 
@@ -227,10 +245,10 @@ Password for the schema.
 =head2 (schema_name)_attrs
 
 Hashref of L<DBI> attributes for the schema.  Passed to
-L<DBIx::Class::Schema-&gt;connect>, which passes them to L<DBI>'s
+L<DBIx::Class::Schema::connect>, which passes them to L<DBI>'s
 connect()
 
 =head2 (schema_name)_schema_options
 
 Hashref of other attributes for the schema.  Passed to
-L<DBIx::Class::Schema-&gt;connect>.
+L<DBIx::Class::Schema::connect>.
