@@ -49,27 +49,27 @@ role {
     };
 
     has "${name}_dsn" => (
-        documentation => "DBI dsn for connecting to the $desc",
+        documentation => "DBI dsn for connecting to the $desc db",
         isa           => 'Str',
         is            => 'rw',
         required      => 1,
         $common_opts->('dsn'),
        );
     has "${name}_user" => (
-        documentation  => "username for connecting to the $desc",
+        documentation  => "username for connecting to the $desc db",
         isa            => 'Str',
         is             => 'rw',
         $common_opts->('user'),
        );
     has "${name}_password" => (
-        documentation => "password for connecting to the $desc",
+        documentation => "password for connecting to the $desc db",
         isa           => 'Str',
         is            => 'rw',
         $common_opts->('password'),
        );
 
     has "${name}_attrs" => (
-        documentation => "hashref of DBI attributes for connecting to $desc",
+        documentation => "hashref of DBI attributes for connecting to $desc db",
         is            => 'rw',
         isa           => 'HashRef',
         default       => sub { {} },
