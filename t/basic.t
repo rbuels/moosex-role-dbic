@@ -36,6 +36,14 @@ BEGIN {
         },
     };
 
+    with 'MooseX::Role::DBIC' => {
+        schema_name  => 'derp',
+        accessor_options => {
+            derp_dsn   => [ default => 'foo!'   ],
+            derp_class => [ default => 'zumba' ],
+        },
+    };
+
     package MockSchema;
 
     sub connect {
